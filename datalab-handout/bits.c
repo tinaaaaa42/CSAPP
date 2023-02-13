@@ -168,8 +168,9 @@ int tmin(void) {
  */
 int isTmax(int x) {
 	/* Tmax=0x7fffffff, which is exactly the reverse of 0x8000000. */
-	int flag = x ^ (1 << 31);
-  return !(~flag); 
+	int plus1 = x + 1;
+	int flag = x ^ (~plus1);
+  return !flag & !!plus1; 
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -309,7 +310,23 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+	/* if exp == 2, left shift by 1.
+	 * if exp == 255, return uf 
+	 * else, decide whether it would be infinate 
+	 * */
+	unsigned exp = (uf&0x7f800000) >> 23;
+  unsigned sign = uf & (0x1 << 31);
+	if (exp == 0) {
+		return (uf << 1) | sign;
+	}
+	if (exp == 255) {
+		return uf;
+	}
+	exp++;
+	if (exp == 255) {
+		return 0x7f800000 | sign;
+	}
+  return (exp << 23) | (uf & 0x807fffff);
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -324,7 +341,34 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+	/* Classified by the value of exponent:
+	 * key value: 0, 23, 31
+	 * */
+	unsigned sign = uf >> 31;
+	unsigned exp = (uf&0x7f800000) >> 23;
+	unsigned significant = (uf & 0x7fffff) | 0x800000;
+
+	int RealExp = exp - 127;
+	int result = 0;
+
+	if (RealExp < 0) {
+		return 0;
+	}
+	if (RealExp > 31) {
+		return 0x80000000u;
+	}
+
+	if (RealExp > 23) {
+		result = significant << (RealExp - 23);
+	} else {
+		result = significant >> (23 - RealExp);
+	}
+
+	if (sign == 1) {
+		result = ~result + 1;
+	}
+
+  return result;
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -340,5 +384,23 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+	/* Denorm float: 2^-149 ~ 2^-126
+	 * Norm float: 2^-126 ~ 2^127
+	 * */
+	int exp;
+	unsigned ret;
+
+	if (x < -149) {
+		return 0;
+	}
+	if (x > 127) {
+		return 0x7f800000;
+	}
+
+	if (x < -126) {   // denorm
+		return 0x1 << (x + 149);
+	}
+	exp = x + 127;
+	ret = exp << 23;
+  return ret;
 }
