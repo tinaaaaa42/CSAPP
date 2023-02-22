@@ -1,0 +1,45 @@
+# sum_list - Sum the elements of a linked list
+
+# System execute
+.pos 0
+irmovq stack, %rsp
+call main
+halt
+
+# Sample linked list
+.align 8
+ele1:
+			.quad 0x00a
+			.quad ele2
+ele2:
+			.quad 0x0b0
+			.quad ele3
+ele3:
+			.quad 0xc00
+			.quad 0
+
+main:
+	irmovq ele1, %rdi
+	call sum_list
+	ret
+
+# function part of sum_list
+sum_list:
+	pushq %rbx
+	xorq %rax, %rax      # use %rax to store val, and set it to 0
+	jmp loop_test
+
+loop:
+	mrmovq (%rdi), %rbx
+	addq %rbx, %rax
+	mrmovq 8(%rdi), %rdi
+
+loop_test:
+	andq %rdi, %rdi
+	jne loop
+	popq %rbx
+	ret
+
+.pos 0x100
+stack:
+
